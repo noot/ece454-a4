@@ -46,6 +46,13 @@ hash<sample,unsigned> h;
 
 void * thread_func(void *vargs);
 
+pthread_mutex_t lock; 
+
+typedef struct {
+  int num_thread_seed_streams;
+  int starting_index;
+} args_t;
+
 int main (int argc, char* argv[]){
   int i,j,k;
   int rnum;
@@ -71,42 +78,34 @@ int main (int argc, char* argv[]){
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
 
-  // pthread_t thread_ids[num_threads];
-  // int num_thread_seed_streams = NUM_SEED_STREAMS/num_threads;
-  // for(i = 0; i < num_threads; i++) {
-  //   pthread_create(&thread_ids[i], NULL, thread_func, (void *)&num_thread_seed_streams);
-  // }
-  // for(i = 0; i < num_threads; i++) {
-  //   pthread_join(thread_ids[i], NULL);
-  // }
+  if (pthread_mutex_init(&lock, NULL) != 0) 
+  { 
+      printf("failed to init mutex :(\n"); 
+      return 1; 
+  }
 
-  // process streams starting with different initial numbers
-  for (i=0; i<NUM_SEED_STREAMS; i++){
-    rnum = i;
+  pthread_t thread_ids[num_threads];
+  int num_thread_seed_streams = NUM_SEED_STREAMS/num_threads;
 
-    // collect a number of samples
-    for (j=0; j<SAMPLES_TO_COLLECT; j++){
+  args_t *args = (args_t *)malloc(num_threads*sizeof(args_t *));
 
-      // skip a number of samples
-      for (k=0; k<samples_to_skip; k++){
-	     rnum = rand_r((unsigned int*)&rnum);
-      }
+  for(i = 0; i < num_threads; i++) {
+    args[i].num_thread_seed_streams = num_thread_seed_streams;
+    args[i].starting_index = num_thread_seed_streams*i;
 
-      // force the sample to be within the range of 0..RAND_NUM_UPPER_BOUND-1
-      key = rnum % RAND_NUM_UPPER_BOUND;
-
-      // if this sample has not been counted before
-      if (!(s = h.lookup(key))){
-      	
-      	// insert a new element for it into the hash table
-      	s = new sample(key);
-      	h.insert(s);
-      }
-
-      // increment the count for the sample
-      s->count++;
+    int error = pthread_create(&thread_ids[i], NULL, thread_func, (void *)&args[i]);
+    if (error != 0) {
+      printf("failed to create thread %d\n", i);
     }
   }
+
+  for(i = 0; i < num_threads; i++) {
+    pthread_join(thread_ids[i], NULL);
+  }
+
+  free(args);
+
+  pthread_mutex_destroy(&lock); 
 
   // print a list of the frequency of all samples
   h.print();
@@ -117,9 +116,10 @@ void * thread_func(void *vargs) {
   int rnum;
   sample *s;
 
-  int num_thread_seed_streams = *((int *)vargs);
+  args_t *args = (args_t *)vargs;
+
   // process streams starting with different initial numbers
-  for (int i=0; i<num_thread_seed_streams; i++){
+  for (int i = args->starting_index; i < args->starting_index+args->num_thread_seed_streams; i++){
     rnum = i;
 
     // collect a number of samples
@@ -134,15 +134,21 @@ void * thread_func(void *vargs) {
       key = rnum % RAND_NUM_UPPER_BOUND;
 
       // if this sample has not been counted before
+      pthread_mutex_lock(&lock); 
+
       if (!(s = h.lookup(key))){
-        
+
         // insert a new element for it into the hash table
         s = new sample(key);
         h.insert(s);
-      }
+      } 
 
       // increment the count for the sample
       s->count++;
+
+      pthread_mutex_unlock(&lock); 
+
+
     }
   }
 
