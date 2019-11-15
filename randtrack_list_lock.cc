@@ -46,7 +46,7 @@ hash<sample,unsigned> h;
 
 void * thread_func(void *vargs);
 
-pthread_mutex_t lock; 
+pthread_mutex_t locks[RAND_NUM_UPPER_BOUND]; 
 
 typedef struct {
   int num_thread_seed_streams;
@@ -78,9 +78,11 @@ int main (int argc, char* argv[]){
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
 
-  if (pthread_mutex_init(&lock, NULL) != 0) { 
-      printf("failed to init mutex :(\n"); 
-      return 1; 
+  for(i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+    if (pthread_mutex_init(&locks[i], NULL) != 0) { 
+        printf("failed to init mutex :(\n"); 
+        return 1; 
+    }
   }
 
   pthread_t thread_ids[num_threads];
@@ -104,7 +106,9 @@ int main (int argc, char* argv[]){
 
   free(args);
 
-  pthread_mutex_destroy(&lock); 
+  for(i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+    pthread_mutex_destroy(&locks[i]); 
+  }
 
   // print a list of the frequency of all samples
   h.print();
@@ -133,6 +137,7 @@ void * thread_func(void *vargs) {
       key = rnum % RAND_NUM_UPPER_BOUND;
 
       // if this sample has not been counted before
+      pthread_mutex_t lock = locks[key];
       pthread_mutex_lock(&lock); 
 
       if (!(s = h.lookup(key))){
@@ -146,8 +151,6 @@ void * thread_func(void *vargs) {
       s->count++;
 
       pthread_mutex_unlock(&lock); 
-
-
     }
   }
 

@@ -42,15 +42,16 @@ class sample {
 // it is a C++ template, which means we define the types for
 // the element and key value here: element is "class sample" and
 // key value is "unsigned".  
-hash<sample,unsigned> h;
+hash<sample,unsigned> h[4];
 
 void * thread_func(void *vargs);
 
-pthread_mutex_t lock; 
+pthread_mutex_t locks[RAND_NUM_UPPER_BOUND]; 
 
 typedef struct {
   int num_thread_seed_streams;
   int starting_index;
+  hash<sample,unsigned> h;
 } args_t;
 
 int main (int argc, char* argv[]){
@@ -76,12 +77,16 @@ int main (int argc, char* argv[]){
   sscanf(argv[2], " %d", &samples_to_skip);
 
   // initialize a 16K-entry (2**14) hash of empty lists
-  h.setup(14);
-
-  if (pthread_mutex_init(&lock, NULL) != 0) { 
-      printf("failed to init mutex :(\n"); 
-      return 1; 
+  for (i = 0; i < 4; i++) {
+    h[i].setup(14);
   }
+
+  // for(i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+  //   if (pthread_mutex_init(&locks[i], NULL) != 0) { 
+  //       printf("failed to init mutex :(\n"); 
+  //       return 1; 
+  //   }
+  // }
 
   pthread_t thread_ids[num_threads];
   int num_thread_seed_streams = NUM_SEED_STREAMS/num_threads;
@@ -91,6 +96,7 @@ int main (int argc, char* argv[]){
   for(i = 0; i < num_threads; i++) {
     args[i].num_thread_seed_streams = num_thread_seed_streams;
     args[i].starting_index = num_thread_seed_streams*i;
+    args[i].h = h[i];
 
     int error = pthread_create(&thread_ids[i], NULL, thread_func, (void *)&args[i]);
     if (error != 0) {
@@ -98,16 +104,26 @@ int main (int argc, char* argv[]){
     }
   }
 
-  for(i = 0; i < num_threads; i++) {
-    pthread_join(thread_ids[i], NULL);
-  }
+  // for(i = 0; i < num_threads; i++) {
+  //   pthread_join(thread_ids[i], NULL);
+  // }
 
   free(args);
 
-  pthread_mutex_destroy(&lock); 
+  // for(i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+  //   pthread_mutex_destroy(&locks[i]); 
+  // }
+
+  // for (i = 1; i < num_threads; i++) {
+  //   for (j = 0; j < RAND_NUM_UPPER_BOUND; j++) {
+  //     int count = h[i].lookup(j)->count;
+  //     sample *s = h[0].lookup(j);
+  //     s->count += count;
+  //   }
+  // }
 
   // print a list of the frequency of all samples
-  h.print();
+  h[0].print();
 }
 
 void * thread_func(void *vargs) {
@@ -133,21 +149,20 @@ void * thread_func(void *vargs) {
       key = rnum % RAND_NUM_UPPER_BOUND;
 
       // if this sample has not been counted before
-      pthread_mutex_lock(&lock); 
+      // pthread_mutex_t lock = locks[key];
+      // pthread_mutex_lock(&lock); 
 
-      if (!(s = h.lookup(key))){
+      if (!(s = args->h.lookup(key))){
 
         // insert a new element for it into the hash table
         s = new sample(key);
-        h.insert(s);
+        args->h.insert(s);
       } 
 
       // increment the count for the sample
       s->count++;
 
-      pthread_mutex_unlock(&lock); 
-
-
+      //pthread_mutex_unlock(&lock); 
     }
   }
 

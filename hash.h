@@ -2,6 +2,8 @@
 #ifndef HASH_H
 #define HASH_H
 
+#define RAND_NUM_UPPER_BOUND 100000
+
 #include <stdio.h>
 #include "list.h"
 
@@ -16,6 +18,8 @@ template<class Ele, class Keytype> class hash {
   unsigned my_size_mask;
   list<Ele,Keytype> *entries;
   list<Ele,Keytype> *get_list(unsigned the_idx);
+  // list of mutexes 
+  pthread_mutex_t locks[RAND_NUM_UPPER_BOUND];
 
  public:
   void setup(unsigned the_size_log=5);
@@ -24,6 +28,8 @@ template<class Ele, class Keytype> class hash {
   void print(FILE *f=stdout);
   void reset();
   void cleanup();
+  void lock_list(Ele *e);
+  void unlock_list(Ele *e);
 };
 
 template<class Ele, class Keytype> 
@@ -33,6 +39,13 @@ hash<Ele,Keytype>::setup(unsigned the_size_log){
   my_size = 1 << my_size_log;
   my_size_mask = (1 << my_size_log) - 1;
   entries = new list<Ele,Keytype>[my_size];
+
+  for(int i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+    if (pthread_mutex_init(&locks[i], NULL) != 0) { 
+        printf("failed to init mutex :(\n"); 
+        return; 
+    }
+  }
 }
 
 template<class Ele, class Keytype> 
@@ -79,6 +92,9 @@ hash<Ele,Keytype>::cleanup(){
   unsigned i;
   reset();
   delete [] entries;
+  for(int i = 0; i < RAND_NUM_UPPER_BOUND; i++) {
+    pthread_mutex_destroy(&locks[i]); 
+  }
 }
 
 template<class Ele, class Keytype> 
@@ -87,5 +103,18 @@ hash<Ele,Keytype>::insert(Ele *e){
   entries[HASH_INDEX(e->key(),my_size_mask)].push(e);
 }
 
+template<class Ele, class Keytype> 
+void 
+hash<Ele,Keytype>::lock_list(Ele *e){
+  int i = HASH_INDEX(e->key(),my_size_mask);
+  pthread_mutex_lock(&locks[i]); 
+}
+
+template<class Ele, class Keytype> 
+void 
+hash<Ele,Keytype>::unlock_list(Ele *e){
+  int i = HASH_INDEX(e->key(),my_size_mask);
+  pthread_mutex_unlock(&locks[i]); 
+}
 
 #endif

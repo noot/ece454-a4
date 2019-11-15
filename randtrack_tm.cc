@@ -78,12 +78,6 @@ int main (int argc, char* argv[]){
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
 
-  if (pthread_mutex_init(&lock, NULL) != 0) 
-  { 
-      printf("failed to init mutex :(\n"); 
-      return 1; 
-  }
-
   pthread_t thread_ids[num_threads];
   int num_thread_seed_streams = NUM_SEED_STREAMS/num_threads;
 
@@ -92,8 +86,6 @@ int main (int argc, char* argv[]){
   for(i = 0; i < num_threads; i++) {
     args[i].num_thread_seed_streams = num_thread_seed_streams;
     args[i].starting_index = num_thread_seed_streams*i;
-
-    //printf("starting_index %d\n", args[i].starting_index);
 
     int error = pthread_create(&thread_ids[i], NULL, thread_func, (void *)&args[i]);
     if (error != 0) {
@@ -106,8 +98,6 @@ int main (int argc, char* argv[]){
   }
 
   free(args);
-
-  pthread_mutex_destroy(&lock); 
 
   // print a list of the frequency of all samples
   h.print();
