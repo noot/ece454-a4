@@ -3,11 +3,11 @@ Elizabeth Binks
 
 Q1. Why is it important to #ifdef out methods and datastructures that aren’t used for different versions of randtrack? 
 
-This is important because we want to be able to run different versions of randtrack using the same project files.
+A1. This is important because we want to be able to run different versions of randtrack using the same project files.
 
 Q2. How difficult was using TM compared to implementing global lock above? 
 
-Using TM was slightly easier, since it didn't require any initialization or cleanup; it was only a 
+A2. Using TM was slightly easier, since it didn't require any initialization or cleanup; it was only a 
 one line + scope change.
 
 
@@ -21,28 +21,26 @@ for each list), and synchronizes using those locks. You will find that this requ
 Q3. Can you implement this without modifying the hash class, or without knowing its internal
 implementation?
 
-Yes, we can make an array that has a lock for every index between 0 to RAND_NUM_UPPER_BOUND-1, since that is the maximum amount of possible keys in the hash table.
+A3. Yes, we can make an array that has a lock for every index between 0 to RAND_NUM_UPPER_BOUND-1, since that is the maximum amount of possible keys in the hash table.
 
 Q4. Can you properly implement this solely by modifying the hash class methods lookup and insert?
 Explain.
 
-Yes, in randtrack_global_lock and randtrack_list_lock, if you put a mutex directly before and directly after the lookup and insert calls,
+A4. Yes, in randtrack_global_lock and randtrack_list_lock, if you put a mutex directly before and directly after the lookup and insert calls,
 the program works as expected. So, if these lock/unlock calls were moved inside the hash class, the program would work the same.
 
 Q5. Can you implement this by adding to the hash class a new function lookup and insert if absent? Explain.
 
-Yes, in randtrack_global_lock and randtrack_list_lock, if you lock the mutex before the lookup and unlock if after the insert, the function works as expected. If a new lookup_and_insert_if_absent  were to be made, you would need to make sure that the lock goes around that function call. 
+A5. Yes, in randtrack_global_lock and randtrack_list_lock, if you lock the mutex before the lookup and unlock if after the insert, the function works as expected. If a new lookup_and_insert_if_absent  were to be made, you would need to make sure that the lock goes around that function call. 
 
 Q6. Can you implement it by adding new methods to the hash class lock list and unlock list? Explain.
 Implement the simplest solution above that works (or a better one if you can think of one).
 
-Yes, you would have to create a lock for each list in the hash class, then lock and unlock the respective lock in the lock_list and unlock_list and add calls to lock_list and unlock_list in the lookup and insert functions. 
+A6. Yes, you would have to create a lock for each list in the hash class, then lock and unlock the respective lock in the lock_list and unlock_list and add calls to lock_list and unlock_list in the lookup and insert functions. 
 
 Q7. How difficult was using TM compared to implementing list locking above? 
 
-List locking was slightly more effort since I needed to initialize the array of locks.
-
-
+A7. List locking was slightly more effort since I needed to initialize the array of locks.
 
 
 
@@ -54,5 +52,68 @@ randtrack_reduction.
 
 Q8. What are the pros and cons of this approach? 
 
-Pros: don't need to worry about concurrency and locking.
+A8. Pros: don't need to worry about concurrency and locking.
 Cons: There is overhead to creating multiple hash tables as well as combining the hash tables at the end. It will be a lot slower since we need to access all the keys in multiple hash tables to add them up.
+
+
+
+
+Run the following experiments and report the runtime results in a table. For those that implemented
+element-lock or reduction versions, report results for them as well.
+1. measure the original randtrack with samples_to_skip set to 50 (num threads can be any number, it
+isn’t used)
+2. measure the global-lock, list-lock, (element-lock), and TM versions of randtrack with 1, 2, and 4 threads,
+and with samples to skip set to 50. 
+
+
+Q9. For samples to skip set to 50, what is the overhead for each parallelization approach? Report this as the
+runtime of the parallel version with one thread divided by the runtime of the single-threaded version.
+
+version ---- | num_threads | overhead | time (s)
+------------ | ----------- | -------- | -------
+original --- | 1 --------- | 1 ------ | 20.91
+global-lock  | 1 --------- | 1.004 -- | 20.99
+global-lock  | 2 --------- | -------- | 12.69
+global-lock  | 4 --------- | -------- | 12.52
+list-lock -- | 1---------- | 1.019 -- | 21.31
+list-lock -- | 2---------- | -------- | 10.98
+list-lock -- | 4---------- | -------- | 5.65
+element-lock | 1 --------- | 1.018 -- | 21.28
+element-lock | 2 --------- | -------- | 11.00
+element-lock | 4 --------- | -------- | 5.70
+TM --------- | 1 --------- | 1.235 -- | 25.83
+TM --------- | 2 --------- | -------- | 12.22
+TM --------- | 4 --------- | -------- | 6.43
+
+Q10. How does each approach perform as the number of threads increases? If performance gets worse for
+a certain case, explain why that may have happened.
+
+A10. The performance increases as number of threads increases, except for global-lock, which stays roughly the same for 2 and 4 threads. This is because the threads compete for the lock often, since there is only 1 global lock. When there are 4 threads, the extra 4 threads are stalled just as much as if there were only 2 threads.
+
+Q11. Repeat the data collection above with samples to skip set to 100 and give the table. How does this
+change impact the results compared with when set to 50? Why?
+
+version ---- | num_threads | overhead | time (s)
+------------ | ----------- | -------- | -------
+original --- | 1 --------- | 1 ------ | 41.35
+global-lock  | 1 --------- | 1.001 -- | 41.41
+global-lock  | 2 --------- | -------- | 22.39
+global-lock  | 4 --------- | -------- | 13.96
+list-lock -- | 1---------- | 1.022 -- | 42.25
+list-lock -- | 2---------- | -------- | 21.93
+list-lock -- | 4---------- | -------- | 11.05
+element-lock | 1 --------- | 1.028 -- | 42.50
+element-lock | 2 --------- | -------- | 21.67
+element-lock | 4 --------- | -------- | 10.94
+TM --------- | 1 --------- | 1.113 -- | 46.03
+TM --------- | 2 --------- | -------- | 22.48
+TM --------- | 4 --------- | -------- | 11.45
+
+A11. For this case, there was a difference between 2 and 4 threads for global-lock. This is because the samples_to_skip loop occurs outside of the lock, and this loop takes longer if the # of samples to skip is increased. Thus it is less likely for all the threads to be competing for the lock at the same time, since they might be busy calculating the random number instead.
+
+Additionally, for all cases, the time doubled by around a factor of 2. This is because the program now needs to spend twice as much time in the loop that calls rand_r, which is the most computationally heavy part of the program.
+
+Q12. Which approach should OptsRus ship? Keep in mind that some customers might be using multicores
+with more than 4 cores, while others might have only one or two cores. 
+
+A12. OptsRus should ship the list-lock or element-lock versions. Both perform well under various # of samples to skip and the execution time improves proportionally to the number of threads (unlike global-lock). They also have the least overhead; TM also performs well but has the most overhead.

@@ -71,15 +71,6 @@ int main (int argc, char* argv[]){
   // initialize a 16K-entry (2**14) hash of empty lists
   h.setup(14);
 
-  // pthread_t thread_ids[num_threads];
-  // int num_thread_seed_streams = NUM_SEED_STREAMS/num_threads;
-  // for(i = 0; i < num_threads; i++) {
-  //   pthread_create(&thread_ids[i], NULL, thread_func, (void *)&num_thread_seed_streams);
-  // }
-  // for(i = 0; i < num_threads; i++) {
-  //   pthread_join(thread_ids[i], NULL);
-  // }
-
   // process streams starting with different initial numbers
   for (i=0; i<NUM_SEED_STREAMS; i++){
     rnum = i;
